@@ -13,6 +13,7 @@ import {
   Camera,
   X,
   Loader2,
+  LogOut,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -43,19 +44,15 @@ const COLORS = {
 
 const API_BASE_URL = "https://fixednow-api.onrender.com";
 
-// Stand-in for real provider auth/login, which doesn't exist yet — this is
-// the seeded demo provider from seed.sql (Davey Quinn, Mechanic/Tyre
-// Fitter/Roadside Assistance/Handyman near Rathmines, Dublin).
-const DEMO_PROVIDER = {
-  id: "11111111-1111-1111-1111-111111111111",
-  name: "Davey Quinn",
-};
+// Persists the provider's login token across reloads. Safe here — this is
+// a real deployed site, not a sandboxed artifact.
+const AUTH_STORAGE_KEY = "fixednow_provider_auth";
 
 async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  const { token, ...rest } = options;
+  const headers = { "Content-Type": "application/json", ...(rest.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...rest, headers });
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(body?.error || `Request failed (${res.status})`);
@@ -752,6 +749,106 @@ function ConnectionStatus({ status, error, onRetry }) {
   return null;
 }
 
+function AuthScreen({ mode, onModeChange, email, onEmailChange, password, onPasswordChange, fullName, onFullNameChange, businessName, onBusinessNameChange, phone, onPhoneChange, onSubmit, submitting, error }) {
+  const isSignup = mode === "signup";
+  return (
+    <div className="flex flex-col h-full" style={{ padding: "20px 20px 24px" }}>
+      <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 22, color: COLORS.textPrimary, textTransform: "uppercase" }}>
+        {isSignup ? "Join FixedNow" : "Provider login"}
+      </span>
+      <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12.5, color: COLORS.textSecondary, marginTop: 4 }}>
+        {isSignup ? "Set up your provider account" : "Log in to start receiving jobs"}
+      </span>
+
+      <div className="flex flex-col" style={{ marginTop: 24, gap: 12, overflowY: "auto" }}>
+        {isSignup && (
+          <>
+            <input
+              value={fullName}
+              onChange={(e) => onFullNameChange(e.target.value)}
+              placeholder="Full name"
+              style={{
+                background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 10,
+                padding: "12px 14px", color: COLORS.textPrimary, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14,
+              }}
+            />
+            <input
+              value={businessName}
+              onChange={(e) => onBusinessNameChange(e.target.value)}
+              placeholder="Business name (optional)"
+              style={{
+                background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 10,
+                padding: "12px 14px", color: COLORS.textPrimary, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14,
+              }}
+            />
+            <input
+              value={phone}
+              onChange={(e) => onPhoneChange(e.target.value)}
+              placeholder="Phone"
+              type="tel"
+              style={{
+                background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 10,
+                padding: "12px 14px", color: COLORS.textPrimary, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14,
+              }}
+            />
+          </>
+        )}
+        <input
+          value={email}
+          onChange={(e) => onEmailChange(e.target.value)}
+          placeholder="Email"
+          type="email"
+          style={{
+            background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 10,
+            padding: "12px 14px", color: COLORS.textPrimary, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14,
+          }}
+        />
+        <input
+          value={password}
+          onChange={(e) => onPasswordChange(e.target.value)}
+          placeholder="Password"
+          type="password"
+          style={{
+            background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 10,
+            padding: "12px 14px", color: COLORS.textPrimary, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14,
+          }}
+        />
+      </div>
+
+      {error && (
+        <span style={{ marginTop: 12, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: COLORS.red }}>
+          {error}
+        </span>
+      )}
+
+      <div className="flex-1" />
+
+      <button
+        onClick={onSubmit}
+        disabled={submitting}
+        style={{
+          width: "100%", padding: "14px 0", borderRadius: 10, border: "none",
+          background: COLORS.amber, color: "#2A1D00",
+          fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 700, fontSize: 14,
+          cursor: submitting ? "default" : "pointer", opacity: submitting ? 0.7 : 1,
+        }}
+      >
+        {submitting ? "Please wait…" : isSignup ? "Create account" : "Log in"}
+      </button>
+
+      <button
+        onClick={() => onModeChange(isSignup ? "login" : "signup")}
+        style={{
+          marginTop: 10, background: "transparent", border: "none", cursor: "pointer",
+          fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12.5, color: COLORS.textSecondary,
+        }}
+      >
+        {isSignup ? "Already registered? Log in" : "New provider? Sign up"}
+      </button>
+    </div>
+  );
+}
+
 export default function ProviderApp() {
   const [screen, setScreen] = useState("home"); // home | offer | active
   const [isOnline, setIsOnline] = useState(false);
@@ -765,6 +862,18 @@ export default function ProviderApp() {
   const [apiError, setApiError] = useState(null);
   const [retryToken, setRetryToken] = useState(0);
 
+  // ---- Auth ----
+  const [authToken, setAuthToken] = useState(null);
+  const [currentProvider, setCurrentProvider] = useState(null);
+  const [authScreenMode, setAuthScreenMode] = useState("login"); // login | signup
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authFullName, setAuthFullName] = useState("");
+  const [authBusinessName, setAuthBusinessName] = useState("");
+  const [authPhone, setAuthPhone] = useState("");
+  const [authError, setAuthError] = useState(null);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+
   const socketRef = useRef(null);
   const categoriesRef = useRef([]);
 
@@ -773,10 +882,9 @@ export default function ProviderApp() {
     setTimeout(() => setToast(null), 2400);
   }, []);
 
-  // Connect to the API + real-time socket once. Categories are cached in a
-  // ref (not state) purely so the socket's 'job:offer' handler — set up
-  // once on mount — always reads the latest list without needing to be
-  // re-subscribed every time categories change (they never do at runtime).
+  // Check API connectivity + load categories once. Categories are cached in
+  // a ref (not state) purely so the socket's 'job:offer' handler always
+  // reads the latest list without needing to be re-subscribed.
   useEffect(() => {
     let cancelled = false;
     setApiStatus("checking");
@@ -789,68 +897,126 @@ export default function ProviderApp() {
         if (cancelled) return;
         categoriesRef.current = catData.categories;
         setApiStatus("ready");
+
+        const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (saved) {
+          try {
+            const { token, provider } = JSON.parse(saved);
+            if (token && provider) {
+              setAuthToken(token);
+              setCurrentProvider(provider);
+            }
+          } catch {
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setApiStatus("unreachable");
           setApiError(err.message);
         }
-        return;
       }
-
-      const socket = io(API_BASE_URL, { transports: ["websocket", "polling"] });
-      socketRef.current = socket;
-
-      socket.on("connect", () => {
-        socket.emit("identify", { type: "provider", id: DEMO_PROVIDER.id });
-        // Sync the server to match this app's local "offline by default"
-        // state, since there's no login flow to read the real status from.
-        socket.emit("provider:setOnline", { providerId: DEMO_PROVIDER.id, isOnline: false });
-      });
-
-      socket.on("job:offer", async (payload) => {
-        try {
-          const job = await apiFetch(`/jobs/${payload.jobId}`);
-          const category = categoriesRef.current.find((c) => c.id === job.category_id);
-          setActiveOffer({
-            offerId: payload.offerId,
-            jobId: payload.jobId,
-            category: category?.name || "Job",
-            urgency: (job.urgency_level || "standard").replace(/^./, (c) => c.toUpperCase()),
-            distanceKm: payload.distanceKm,
-            area: job.address_text || "Address provided after accept",
-            payout: job.price_quoted ?? job.price_final ?? null,
-            timeoutSeconds: payload.timeoutSeconds,
-            photoCount: Array.isArray(job.photo_urls) ? job.photo_urls.length : 0,
-            requiresCompletionPhoto: category?.requires_completion_photo ?? true,
-          });
-          setScreen("offer");
-        } catch (err) {
-          console.error("Failed to load offer details:", err.message);
-        }
-      });
-
-      socket.on("job:offerCancelled", () => {
-        setScreen((current) => {
-          if (current === "offer") {
-            flashToast("Job taken by another provider", "info");
-            return "home";
-          }
-          return current;
-        });
-      });
     })();
 
     return () => {
       cancelled = true;
-      socketRef.current?.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryToken]);
+
+  // Connect the real-time socket only once actually logged in. Identifies
+  // using the verified token itself — the server derives the provider ID
+  // from it, so this app never needs to (and can't) claim to be someone
+  // else's account.
+  useEffect(() => {
+    if (apiStatus !== "ready" || !authToken) return;
+
+    const socket = io(API_BASE_URL, { transports: ["websocket", "polling"] });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("identify", { token: authToken });
+      // Sync the server to match this app's local "offline by default"
+      // state on every fresh connection (e.g. after a page reload).
+      socket.emit("provider:setOnline", { isOnline: false });
+    });
+
+    socket.on("job:offer", async (payload) => {
+      try {
+        const job = await apiFetch(`/jobs/${payload.jobId}`, { token: authToken });
+        const category = categoriesRef.current.find((c) => c.id === job.category_id);
+        setActiveOffer({
+          offerId: payload.offerId,
+          jobId: payload.jobId,
+          category: category?.name || "Job",
+          urgency: (job.urgency_level || "standard").replace(/^./, (c) => c.toUpperCase()),
+          distanceKm: payload.distanceKm,
+          area: job.address_text || "Address provided after accept",
+          payout: job.price_quoted ?? job.price_final ?? null,
+          timeoutSeconds: payload.timeoutSeconds,
+          photoCount: Array.isArray(job.photo_urls) ? job.photo_urls.length : 0,
+          requiresCompletionPhoto: category?.requires_completion_photo ?? true,
+        });
+        setScreen("offer");
+      } catch (err) {
+        console.error("Failed to load offer details:", err.message);
+      }
+    });
+
+    socket.on("job:offerCancelled", () => {
+      setScreen((current) => {
+        if (current === "offer") {
+          flashToast("Job taken by another provider", "info");
+          return "home";
+        }
+        return current;
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [apiStatus, authToken, flashToast]);
+
+  const submitAuth = async () => {
+    const isSignup = authScreenMode === "signup";
+    if (!authEmail.trim() || !authPassword.trim() || (isSignup && (!authFullName.trim() || !authPhone.trim()))) return;
+    setAuthSubmitting(true);
+    setAuthError(null);
+    try {
+      const path = isSignup ? "/auth/provider/signup" : "/auth/provider/login";
+      const body = isSignup
+        ? {
+            email: authEmail.trim(),
+            password: authPassword,
+            fullName: authFullName.trim(),
+            businessName: authBusinessName.trim() || undefined,
+            phone: authPhone.trim(),
+          }
+        : { email: authEmail.trim(), password: authPassword };
+      const data = await apiFetch(path, { method: "POST", body: JSON.stringify(body) });
+      setAuthToken(data.token);
+      setCurrentProvider(data.provider);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: data.token, provider: data.provider }));
+      setAuthPassword("");
+    } catch (err) {
+      setAuthError(err.message);
+    } finally {
+      setAuthSubmitting(false);
+    }
+  };
+
+  const logout = () => {
+    socketRef.current?.disconnect();
+    setAuthToken(null);
+    setCurrentProvider(null);
+    setIsOnline(false);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  };
 
   const handleToggleOnline = () => {
     setIsOnline((v) => {
       const next = !v;
-      socketRef.current?.emit("provider:setOnline", { providerId: DEMO_PROVIDER.id, isOnline: next });
+      socketRef.current?.emit("provider:setOnline", { isOnline: next });
       flashToast(next ? "You're online — receiving job pings" : "You're offline", next ? "success" : "info");
       return next;
     });
@@ -861,7 +1027,7 @@ export default function ProviderApp() {
     try {
       await apiFetch(`/jobs/${activeOffer.jobId}/offers/${activeOffer.offerId}/accept`, {
         method: "POST",
-        body: JSON.stringify({ providerId: DEMO_PROVIDER.id }),
+        token: authToken,
       });
       setStageIndex(0);
       setScreen("active");
@@ -877,7 +1043,7 @@ export default function ProviderApp() {
     try {
       await apiFetch(`/jobs/${activeOffer.jobId}/offers/${activeOffer.offerId}/decline`, {
         method: "POST",
-        body: JSON.stringify({ providerId: DEMO_PROVIDER.id }),
+        token: authToken,
       });
     } catch (err) {
       // Offer may have already expired/resolved server-side — not fatal.
@@ -901,7 +1067,8 @@ export default function ProviderApp() {
     try {
       await apiFetch(`/jobs/${activeOffer.jobId}/status`, {
         method: "POST",
-        body: JSON.stringify({ providerId: DEMO_PROVIDER.id, status: nextStatus }),
+        token: authToken,
+        body: JSON.stringify({ status: nextStatus }),
       });
       setStageIndex((i) => Math.min(i + 1, JOB_STAGES.length - 1));
     } catch (err) {
@@ -915,7 +1082,8 @@ export default function ProviderApp() {
       const photoUrls = photos.map((_, i) => `demo://completion-photo-${i + 1}.jpg`);
       await apiFetch(`/jobs/${activeOffer.jobId}/complete`, {
         method: "POST",
-        body: JSON.stringify({ providerId: DEMO_PROVIDER.id, photoUrls }),
+        token: authToken,
+        body: JSON.stringify({ photoUrls }),
       });
       if (activeOffer.payout != null) {
         setEarnings((e) => +(e + activeOffer.payout).toFixed(2));
@@ -977,12 +1145,48 @@ export default function ProviderApp() {
 
           <StatusBar />
 
+          {apiStatus === "ready" && authToken && (
+            <div className="flex items-center justify-between" style={{ padding: "4px 20px 0" }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: COLORS.textFaint }}>
+                {currentProvider?.fullName}
+              </span>
+              <button
+                onClick={logout}
+                className="flex items-center justify-center"
+                style={{ width: 26, height: 26, borderRadius: 8, background: COLORS.panelRaised, border: "none", cursor: "pointer" }}
+                aria-label="Log out"
+              >
+                <LogOut size={12} color={COLORS.textFaint} />
+              </button>
+            </div>
+          )}
+
           <div className="flex-1" style={{ overflowY: "auto" }}>
             {apiStatus !== "ready" && (
               <ConnectionStatus status={apiStatus} error={apiError} onRetry={() => setRetryToken((t) => t + 1)} />
             )}
 
-            {apiStatus === "ready" && screen === "home" && (
+            {apiStatus === "ready" && !authToken && (
+              <AuthScreen
+                mode={authScreenMode}
+                onModeChange={setAuthScreenMode}
+                email={authEmail}
+                onEmailChange={setAuthEmail}
+                password={authPassword}
+                onPasswordChange={setAuthPassword}
+                fullName={authFullName}
+                onFullNameChange={setAuthFullName}
+                businessName={authBusinessName}
+                onBusinessNameChange={setAuthBusinessName}
+                phone={authPhone}
+                onPhoneChange={setAuthPhone}
+                onSubmit={submitAuth}
+                submitting={authSubmitting}
+                error={authError}
+              />
+            )}
+
+            {apiStatus === "ready" && authToken && screen === "home" && (
               <HomeScreen
                 isOnline={isOnline}
                 onToggle={handleToggleOnline}
@@ -990,10 +1194,10 @@ export default function ProviderApp() {
                 jobsToday={jobsToday}
               />
             )}
-            {apiStatus === "ready" && screen === "offer" && activeOffer && (
+            {apiStatus === "ready" && authToken && screen === "offer" && activeOffer && (
               <OfferScreen offer={activeOffer} onAccept={handleAccept} onDecline={handleDecline} onExpire={handleExpire} />
             )}
-            {apiStatus === "ready" && screen === "active" && activeOffer && (
+            {apiStatus === "ready" && authToken && screen === "active" && activeOffer && (
               <ActiveJobScreen
                 offer={activeOffer}
                 stageIndex={stageIndex}

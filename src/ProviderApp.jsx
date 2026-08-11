@@ -243,7 +243,7 @@ function HistoryRow({ category, area, payout, time }) {
   );
 }
 
-function HomeScreen({ isOnline, onToggle, earnings, jobsToday }) {
+function HomeScreen({ isOnline, onToggle, earnings, jobsToday, onOpenServices }) {
   return (
     <div className="flex flex-col h-full" style={{ padding: "0 20px 20px" }}>
       <div className="flex items-center justify-between" style={{ padding: "6px 0 0" }}>
@@ -285,6 +285,26 @@ function HomeScreen({ isOnline, onToggle, earnings, jobsToday }) {
         <StatCard label="JOBS" value={jobsToday} unit="today" />
         <StatCard label="ONLINE" value="5.2" unit="hrs" />
       </div>
+
+      <button
+        onClick={onOpenServices}
+        className="flex items-center justify-center gap-2"
+        style={{
+          marginTop: 10,
+          padding: "10px 0",
+          borderRadius: 8,
+          border: `1px solid ${COLORS.hairline}`,
+          background: COLORS.panel,
+          color: COLORS.textPrimary,
+          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontWeight: 600,
+          fontSize: 12.5,
+          cursor: "pointer",
+        }}
+      >
+        <Wrench size={13} color={COLORS.amber} />
+        Manage my services
+      </button>
 
       {isOnline && (
         <div
@@ -713,6 +733,177 @@ function ToastBanner({ message, tone }) {
   );
 }
 
+function ServiceRow({ category, current, onAdd, onUpdate, onRemove, busy }) {
+  const [radius, setRadius] = useState(current?.service_radius_km ?? category.default_service_radius_km ?? 15);
+  const [rate, setRate] = useState(current?.flat_rate ?? "");
+  const isOffering = !!current;
+
+  return (
+    <div
+      style={{
+        background: COLORS.panel,
+        border: `1px solid ${COLORS.hairline}`,
+        borderRadius: 10,
+        padding: "12px 14px",
+        marginBottom: 8,
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, fontSize: 14, color: COLORS.textPrimary }}>
+            {category.name}
+          </span>
+          {category.requires_regulation && (
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: COLORS.textFaint, marginTop: 2 }}>
+              REGULATED TRADE
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => (isOffering ? onRemove(category.id) : onAdd(category.id, radius, rate))}
+          disabled={busy}
+          style={{
+            padding: "6px 14px",
+            borderRadius: 8,
+            border: `1px solid ${isOffering ? COLORS.red : COLORS.amber}`,
+            background: isOffering ? "transparent" : COLORS.amber,
+            color: isOffering ? COLORS.red : "#2A1D00",
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontWeight: 700,
+            fontSize: 11.5,
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.6 : 1,
+          }}
+        >
+          {isOffering ? "Remove" : "Add"}
+        </button>
+      </div>
+
+      {isOffering && (
+        <>
+          <div className="flex gap-2" style={{ marginTop: 10 }}>
+            <div className="flex flex-col" style={{ flex: 1 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: COLORS.textFaint }}>
+                RADIUS (KM)
+              </span>
+              <input
+                type="number"
+                value={radius}
+                onChange={(e) => setRadius(e.target.value)}
+                style={{
+                  marginTop: 3,
+                  background: COLORS.panelRaised,
+                  border: `1px solid ${COLORS.hairline}`,
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  color: COLORS.textPrimary,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 12,
+                }}
+              />
+            </div>
+            <div className="flex flex-col" style={{ flex: 1 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: COLORS.textFaint }}>
+                FLAT RATE € (OPTIONAL)
+              </span>
+              <input
+                type="number"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder="—"
+                style={{
+                  marginTop: 3,
+                  background: COLORS.panelRaised,
+                  border: `1px solid ${COLORS.hairline}`,
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  color: COLORS.textPrimary,
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 12,
+                }}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
+            {current.verification_status === "pending" ? (
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: COLORS.amber }}>
+                Verification pending
+              </span>
+            ) : (
+              <span />
+            )}
+            <button
+              onClick={() => onUpdate(category.id, radius, rate)}
+              disabled={busy}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: `1px solid ${COLORS.hairline}`,
+                background: "transparent",
+                color: COLORS.textSecondary,
+                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontWeight: 600,
+                fontSize: 11,
+                cursor: busy ? "default" : "pointer",
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ServicesScreen({ categories, myServicesByCategory, onBack, onAdd, onUpdate, onRemove, loading, error, busy }) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-3" style={{ padding: "6px 20px 0" }}>
+        <button
+          onClick={onBack}
+          className="flex items-center justify-center"
+          style={{ width: 30, height: 30, borderRadius: 999, background: COLORS.panel, border: "none", cursor: "pointer" }}
+        >
+          <ChevronRight size={16} color={COLORS.textPrimary} style={{ transform: "rotate(180deg)" }} />
+        </button>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: COLORS.textFaint, letterSpacing: 0.5 }}>
+          MY SERVICES
+        </span>
+      </div>
+
+      <div className="flex flex-col" style={{ overflowY: "auto", flex: 1, padding: "14px 20px 20px" }}>
+        <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: COLORS.textSecondary, marginBottom: 12 }}>
+          Add a category to start receiving jobs for it. Regulated trades need verification before going live.
+        </span>
+
+        {loading && (
+          <div className="flex items-center justify-center gap-2" style={{ marginTop: 30 }}>
+            <Loader2 size={14} color={COLORS.textFaint} className="animate-spin" />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.textFaint }}>Loading…</span>
+          </div>
+        )}
+        {!loading && error && (
+          <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12, color: COLORS.red }}>{error}</span>
+        )}
+        {!loading &&
+          !error &&
+          categories.map((category) => (
+            <ServiceRow
+              key={category.id}
+              category={category}
+              current={myServicesByCategory[category.id] || null}
+              onAdd={onAdd}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+              busy={busy}
+            />
+          ))}
+      </div>
+    </div>
+  );
+}
+
 function ConnectionStatus({ status, error, onRetry }) {
   if (status === "checking") {
     return (
@@ -850,13 +1041,19 @@ function AuthScreen({ mode, onModeChange, email, onEmailChange, password, onPass
 }
 
 export default function ProviderApp() {
-  const [screen, setScreen] = useState("home"); // home | offer | active
+  const [screen, setScreen] = useState("home"); // home | offer | active | services
   const [isOnline, setIsOnline] = useState(false);
   const [earnings, setEarnings] = useState(184.5);
   const [jobsToday, setJobsToday] = useState(6);
   const [stageIndex, setStageIndex] = useState(0);
   const [toast, setToast] = useState(null);
   const [activeOffer, setActiveOffer] = useState(null);
+
+  // ---- My Services (category setup) ----
+  const [myServicesByCategory, setMyServicesByCategory] = useState({});
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [servicesError, setServicesError] = useState(null);
+  const [servicesBusy, setServicesBusy] = useState(false);
 
   const [apiStatus, setApiStatus] = useState("checking"); // checking | ready | unreachable
   const [apiError, setApiError] = useState(null);
@@ -876,6 +1073,7 @@ export default function ProviderApp() {
 
   const socketRef = useRef(null);
   const categoriesRef = useRef([]);
+  const [categories, setCategories] = useState([]);
 
   const flashToast = useCallback((message, tone) => {
     setToast({ message, tone });
@@ -896,6 +1094,7 @@ export default function ProviderApp() {
         const catData = await apiFetch("/categories");
         if (cancelled) return;
         categoriesRef.current = catData.categories;
+        setCategories(catData.categories);
         setApiStatus("ready");
 
         const saved = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -1020,6 +1219,62 @@ export default function ProviderApp() {
       flashToast(next ? "You're online — receiving job pings" : "You're offline", next ? "success" : "info");
       return next;
     });
+  };
+
+  const fetchMyServices = async () => {
+    setServicesLoading(true);
+    setServicesError(null);
+    try {
+      const data = await apiFetch("/providers/me/services", { token: authToken });
+      const byCategory = {};
+      data.services.forEach((s) => {
+        byCategory[s.category_id] = s;
+      });
+      setMyServicesByCategory(byCategory);
+    } catch (err) {
+      setServicesError(err.message);
+    } finally {
+      setServicesLoading(false);
+    }
+  };
+
+  const openServices = () => {
+    setScreen("services");
+    fetchMyServices();
+  };
+
+  const upsertService = async (categoryId, radius, rate) => {
+    setServicesBusy(true);
+    try {
+      await apiFetch("/providers/me/services", {
+        method: "POST",
+        token: authToken,
+        body: JSON.stringify({
+          categoryId,
+          serviceRadiusKm: Number(radius) || undefined,
+          flatRate: rate === "" ? undefined : Number(rate),
+        }),
+      });
+      await fetchMyServices();
+      flashToast("Service updated", "success");
+    } catch (err) {
+      flashToast(err.message, "error");
+    } finally {
+      setServicesBusy(false);
+    }
+  };
+
+  const removeService = async (categoryId) => {
+    setServicesBusy(true);
+    try {
+      await apiFetch(`/providers/me/services/${categoryId}`, { method: "DELETE", token: authToken });
+      await fetchMyServices();
+      flashToast("Service removed", "info");
+    } catch (err) {
+      flashToast(err.message, "error");
+    } finally {
+      setServicesBusy(false);
+    }
   };
 
   const handleAccept = async () => {
@@ -1192,6 +1447,7 @@ export default function ProviderApp() {
                 onToggle={handleToggleOnline}
                 earnings={earnings}
                 jobsToday={jobsToday}
+                onOpenServices={openServices}
               />
             )}
             {apiStatus === "ready" && authToken && screen === "offer" && activeOffer && (
@@ -1204,6 +1460,19 @@ export default function ProviderApp() {
                 onAdvance={handleAdvanceStage}
                 onFinish={handleFinish}
                 onRequirePhoto={handleRequirePhoto}
+              />
+            )}
+            {apiStatus === "ready" && authToken && screen === "services" && (
+              <ServicesScreen
+                categories={categories}
+                myServicesByCategory={myServicesByCategory}
+                onBack={() => setScreen("home")}
+                onAdd={upsertService}
+                onUpdate={upsertService}
+                onRemove={removeService}
+                loading={servicesLoading}
+                error={servicesError}
+                busy={servicesBusy}
               />
             )}
           </div>

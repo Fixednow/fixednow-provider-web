@@ -98,7 +98,6 @@ function StatusBar() {
       style={{ height: 28, color: COLORS.textSecondary, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}
     >
       <span>9:41</span>
-      <span style={{ letterSpacing: 1 }}>SEND THE PROS · PARTNER</span>
       <span>82%</span>
     </div>
   );
@@ -310,7 +309,7 @@ function HomeScreen({ isOnline, onToggle, earnings, jobsToday, onOpenServices })
       <DialToggle isOnline={isOnline} onToggle={onToggle} />
 
       <div className="flex gap-2.5" style={{ marginTop: 4 }}>
-        <StatCard label="TODAY" value={`€${earnings}`} />
+        <StatCard label="TODAY" value={`€${Number(earnings).toFixed(2)}`} />
         <StatCard label="JOBS" value={jobsToday} unit="today" />
         <StatCard label="ONLINE" value="5.2" unit="hrs" />
       </div>

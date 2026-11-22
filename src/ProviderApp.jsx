@@ -20,19 +20,22 @@ import {
 // Design concept: "dispatch console" — instrument-panel gauges reused as the
 // through-line (the online toggle is a dial, the offer countdown is a gauge
 // ring, job progress is a gauge arc). Dark charcoal base + hi-vis amber, the
-// one color every one of FixedNow's trades already wears on site.
+// one color every one of Send the Pros' trades already wears on site.
 // ---------------------------------------------------------------------------
 
 const COLORS = {
-  base: "#12151A",
-  panel: "#1B2028",
-  panelRaised: "#232A34",
-  hairline: "#2E3642",
-  textPrimary: "#EDEFF3",
-  textSecondary: "#8B94A3",
-  textFaint: "#5A6270",
-  amber: "#FFB800",
-  amberDim: "#8A6300",
+  // Send the Pros brand palette (Bog Green / Harvest Gold), shared with the
+  // customer app. Key names kept so the rest of the file is unchanged:
+  // "amber" is now Harvest Gold, the hi-vis accent of the Partner app.
+  base: "#152219",
+  panel: "#1F3327",
+  panelRaised: "#2A4232",
+  hairline: "#3C5744",
+  textPrimary: "#F4EFE2",
+  textSecondary: "#A9BDAF",
+  textFaint: "#7A9183",
+  amber: "#C9A227",
+  amberDim: "#8F730F",
   green: "#3ECF6B",
   red: "#FF5A52",
 };
@@ -95,7 +98,7 @@ function StatusBar() {
       style={{ height: 28, color: COLORS.textSecondary, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 }}
     >
       <span>9:41</span>
-      <span style={{ letterSpacing: 1 }}>FIXEDNOW · PROVIDER</span>
+      <span style={{ letterSpacing: 1 }}>SEND THE PROS · PARTNER</span>
       <span>82%</span>
     </div>
   );
@@ -243,21 +246,47 @@ function HistoryRow({ category, area, payout, time }) {
   );
 }
 
+// Send the Pros: Partner mark — the brand map pin holding a worker in a hard
+// hat and hi-vis collar, on a gold tile (the customer app has the same pin
+// with "PRO", in swapped colours).
+function PartnerMark({ size = 40 }) {
+  // Same geometry everywhere, so a shared id is safe if two marks render at once.
+  const clipId = "partner-mark-clip";
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Send the Pros: Partner">
+      <defs>
+        <clipPath id={clipId}><circle cx="50" cy="39" r="18" /></clipPath>
+      </defs>
+      <rect width="100" height="100" rx="22" fill="#C9A227" />
+      <path d="M50 12 C35 12 24 24 24 39 C24 58 50 86 50 86 C50 86 76 58 76 39 C76 24 65 12 50 12 Z" fill="#152219" />
+      <circle cx="50" cy="39" r="18" fill="#C9A227" />
+      <g clipPath={`url(#${clipId})`}>
+        <path d="M35 60 C35 49 41 47 50 47 C59 47 65 49 65 60 Z" fill="#152219" />
+        <path d="M44.5 47.5 L50 53.5 L55.5 47.5" stroke="#FBF7EE" strokeWidth="2.4" strokeLinejoin="round" fill="none" />
+      </g>
+      <circle cx="50" cy="40" r="5.6" fill="#152219" />
+      <path d="M43.2 37.4 A6.8 6.8 0 0 1 56.8 37.4 Z" fill="#FBF7EE" />
+      <rect x="41.4" y="36.3" width="17.2" height="2.6" rx="1.3" fill="#FBF7EE" />
+    </svg>
+  );
+}
+
 function HomeScreen({ isOnline, onToggle, earnings, jobsToday, onOpenServices }) {
   return (
     <div className="flex flex-col h-full" style={{ padding: "0 20px 20px" }}>
       <div className="flex items-center justify-between" style={{ padding: "6px 0 0" }}>
         <div className="flex items-center gap-2">
+          <PartnerMark size={30} />
           <span
             style={{
               fontFamily: "'Big Shoulders Display', sans-serif",
-              fontWeight: 700,
-              fontSize: 20,
+              fontWeight: 900,
+              fontSize: 22,
               color: COLORS.textPrimary,
               letterSpacing: 0.5,
             }}
           >
-            FIXEDNOW
+            SEND THE <span style={{ color: COLORS.amber }}>PROS</span>
           </span>
           <span
             style={{
@@ -269,7 +298,7 @@ function HomeScreen({ isOnline, onToggle, earnings, jobsToday, onOpenServices })
               padding: "1px 5px",
             }}
           >
-            PROVIDER
+            PARTNER
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -511,7 +540,7 @@ function GaugeStepper({ stageIndex }) {
                   borderRadius: 999,
                   background: done || current ? COLORS.amber : COLORS.panelRaised,
                   border: `1px solid ${done || current ? COLORS.amber : COLORS.hairline}`,
-                  color: done || current ? "#2A1D00" : COLORS.textFaint,
+                  color: done || current ? "#152219" : COLORS.textFaint,
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 11,
                   fontWeight: 700,
@@ -694,7 +723,7 @@ function ActiveJobScreen({ offer, stageIndex, onAdvance, onFinish, onRequirePhot
           borderRadius: 10,
           border: "none",
           background: isLast && needsPhoto ? COLORS.panelRaised : COLORS.amber,
-          color: isLast && needsPhoto ? COLORS.textFaint : "#2A1D00",
+          color: isLast && needsPhoto ? COLORS.textFaint : "#152219",
           fontFamily: "'IBM Plex Sans', sans-serif",
           fontWeight: 700,
           fontSize: 14,
@@ -767,7 +796,7 @@ function ServiceRow({ category, current, onAdd, onUpdate, onRemove, busy }) {
             borderRadius: 8,
             border: `1px solid ${isOffering ? COLORS.red : COLORS.amber}`,
             background: isOffering ? "transparent" : COLORS.amber,
-            color: isOffering ? COLORS.red : "#2A1D00",
+            color: isOffering ? COLORS.red : "#152219",
             fontFamily: "'IBM Plex Sans', sans-serif",
             fontWeight: 700,
             fontSize: 11.5,
@@ -928,7 +957,7 @@ function ConnectionStatus({ status, error, onRetry }) {
           onClick={onRetry}
           style={{
             marginTop: 18, padding: "10px 22px", borderRadius: 10, border: "none",
-            background: COLORS.amber, color: "#2A1D00",
+            background: COLORS.amber, color: "#152219",
             fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer",
           }}
         >
@@ -944,11 +973,22 @@ function AuthScreen({ mode, onModeChange, email, onEmailChange, password, onPass
   const isSignup = mode === "signup";
   return (
     <div className="flex flex-col h-full" style={{ padding: "20px 20px 24px" }}>
-      <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 700, fontSize: 22, color: COLORS.textPrimary, textTransform: "uppercase" }}>
-        {isSignup ? "Join FixedNow" : "Provider login"}
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 26 }}>
+        <PartnerMark size={52} />
+        <div className="flex flex-col" style={{ gap: 2 }}>
+          <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 900, fontSize: 30, lineHeight: 0.9, color: COLORS.textPrimary }}>
+            SEND THE <span style={{ color: COLORS.amber }}>PROS</span>
+          </span>
+          <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, fontSize: 18, letterSpacing: 1.5, color: COLORS.amber }}>
+            PARTNER
+          </span>
+        </div>
+      </div>
+      <span style={{ fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 800, fontSize: 26, color: COLORS.textPrimary, textTransform: "uppercase" }}>
+        {isSignup ? "Join Send the Pros" : "Partner login"}
       </span>
       <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12.5, color: COLORS.textSecondary, marginTop: 4 }}>
-        {isSignup ? "Set up your provider account" : "Log in to start receiving jobs"}
+        {isSignup ? "Set up your Partner account" : "Log in to start receiving jobs"}
       </span>
 
       <div className="flex flex-col" style={{ marginTop: 24, gap: 12, overflowY: "auto" }}>
@@ -1019,7 +1059,7 @@ function AuthScreen({ mode, onModeChange, email, onEmailChange, password, onPass
         disabled={submitting}
         style={{
           width: "100%", padding: "14px 0", borderRadius: 10, border: "none",
-          background: COLORS.amber, color: "#2A1D00",
+          background: COLORS.amber, color: "#152219",
           fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 700, fontSize: 14,
           cursor: submitting ? "default" : "pointer", opacity: submitting ? 0.7 : 1,
         }}
@@ -1034,7 +1074,7 @@ function AuthScreen({ mode, onModeChange, email, onEmailChange, password, onPass
           fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12.5, color: COLORS.textSecondary,
         }}
       >
-        {isSignup ? "Already registered? Log in" : "New provider? Sign up"}
+        {isSignup ? "Already a Partner? Log in" : "New Partner? Sign up"}
       </button>
     </div>
   );
@@ -1164,7 +1204,7 @@ export default function ProviderApp() {
     socket.on("job:offerCancelled", () => {
       setScreen((current) => {
         if (current === "offer") {
-          flashToast("Job taken by another provider", "info");
+          flashToast("Job taken by another pro", "info");
           return "home";
         }
         return current;
@@ -1305,7 +1345,7 @@ export default function ProviderApp() {
       console.error("Decline error:", err.message);
     }
     setScreen("home");
-    flashToast("Declined — job passed to another provider", "info");
+    flashToast("Declined — job passed to another pro", "info");
   };
 
   const handleExpire = () => {
@@ -1364,7 +1404,7 @@ export default function ProviderApp() {
       style={{ minHeight: "100vh", background: "#05060A", padding: 24 }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
       `}</style>
 
       {/* Phone frame */}

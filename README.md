@@ -1,4 +1,4 @@
-# FixedNow Provider Web App
+# Send the Pros: Partner — Provider Web App
 
 Standalone deployable version of the provider app — connects to the real
 FixedNow API over both HTTP and a live WebSocket (via `socket.io-client`),
